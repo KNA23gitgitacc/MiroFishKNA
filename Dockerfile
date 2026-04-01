@@ -23,7 +23,12 @@ RUN npm ci \
 # 复制项目源码
 COPY . .
 
+RUN useradd -m -u 1000 appuser
+USER appuser
+
 EXPOSE 3000 5001
+
+HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:5001/health || exit 1
 
 # 同时启动前后端（开发模式）
 CMD ["npm", "run", "dev"]

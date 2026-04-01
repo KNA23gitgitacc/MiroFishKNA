@@ -1,9 +1,11 @@
 """
-LLM客户端封装
-统一使用OpenAI格式调用
+LLM Client Wrapper
+Unified OpenAI format API calls
+Supports Ollama num_ctx parameter to prevent prompt truncation
 """
 
 import json
+import os
 import re
 from typing import Optional, Dict, Any, List
 from openai import OpenAI
@@ -12,26 +14,36 @@ from ..config import Config
 
 
 class LLMClient:
-    """LLM客户端"""
-    
+    """LLM Client"""
+
     def __init__(
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        timeout: float = 300.0
     ):
         self.api_key = api_key or Config.LLM_API_KEY
         self.base_url = base_url or Config.LLM_BASE_URL
         self.model = model or Config.LLM_MODEL_NAME
-        
+
         if not self.api_key:
-            raise ValueError("LLM_API_KEY 未配置")
-        
+            raise ValueError("LLM_API_KEY not configured")
+
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+            timeout=timeout,
         )
-    
+
+        # Ollama context window size — prevents prompt truncation.
+        # Read from env OLLAMA_NUM_CTX, default 8192 (Ollama default is only 2048).
+        self._num_ctx = int(os.environ.get('OLLAMA_NUM_CTX', '8192'))
+
+    def _is_ollama(self) -> bool:
+        """Check if we're talking to an Ollama server."""
+        return '11434' in (self.base_url or '')
+
     def chat(
         self,
         messages: List[Dict[str, str]],
@@ -40,16 +52,16 @@ class LLMClient:
         response_format: Optional[Dict] = None
     ) -> str:
         """
-        发送聊天请求
-        
+        Send chat request
+
         Args:
-            messages: 消息列表
-            temperature: 温度参数
-            max_tokens: 最大token数
-            response_format: 响应格式（如JSON模式）
-            
+            messages: Message list
+            temperature: Temperature parameter
+            max_tokens: Max token count
+            response_format: Response format (e.g., JSON mode)
+
         Returns:
-            模型响应文本
+            Model response text
         """
         kwargs = {
             "model": self.model,
@@ -57,16 +69,22 @@ class LLMClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        
+
         if response_format:
             kwargs["response_format"] = response_format
-        
+
+        # For Ollama: pass num_ctx via extra_body to prevent prompt truncation
+        if self._is_ollama() and self._num_ctx:
+            kwargs["extra_body"] = {
+                "options": {"num_ctx": self._num_ctx}
+            }
+
         response = self.client.chat.completions.create(**kwargs)
         content = response.choices[0].message.content
-        # 部分模型（如MiniMax M2.5）会在content中包含<think>思考内容，需要移除
+        # Some models (like MiniMax M2.5) include <think>thinking content in response, need to remove
         content = re.sub(r'<think>[\s\S]*?</think>', '', content).strip()
         return content
-    
+
     def chat_json(
         self,
         messages: List[Dict[str, str]],
@@ -74,15 +92,15 @@ class LLMClient:
         max_tokens: int = 4096
     ) -> Dict[str, Any]:
         """
-        发送聊天请求并返回JSON
-        
+        Send chat request and return JSON
+
         Args:
-            messages: 消息列表
-            temperature: 温度参数
-            max_tokens: 最大token数
-            
+            messages: Message list
+            temperature: Temperature parameter
+            max_tokens: Max token count
+
         Returns:
-            解析后的JSON对象
+            Parsed JSON object
         """
         response = self.chat(
             messages=messages,
@@ -90,7 +108,7 @@ class LLMClient:
             max_tokens=max_tokens,
             response_format={"type": "json_object"}
         )
-        # 清理markdown代码块标记
+        # Clean markdown code block markers
         cleaned_response = response.strip()
         cleaned_response = re.sub(r'^```(?:json)?\s*\n?', '', cleaned_response, flags=re.IGNORECASE)
         cleaned_response = re.sub(r'\n?```\s*$', '', cleaned_response)
@@ -99,5 +117,4 @@ class LLMClient:
         try:
             return json.loads(cleaned_response)
         except json.JSONDecodeError:
-            raise ValueError(f"LLM返回的JSON格式无效: {cleaned_response}")
-
+            raise ValueError(f"Invalid JSON format from LLM: {cleaned_response}")

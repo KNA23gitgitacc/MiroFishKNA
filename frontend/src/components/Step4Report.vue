@@ -391,6 +391,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
+import DOMPurify from 'dompurify'
 import { useRouter } from 'vue-router'
 import { getAgentLog, getConsoleLog } from '../api/report'
 
@@ -1527,11 +1528,11 @@ const InterviewDisplay = {
                   ]),
                   h('div', {
                     class: ['qa-text', 'answer-text', { 'placeholder-text': isPlaceholder }],
-                    innerHTML: isPlaceholder
+                    innerHTML: DOMPurify.sanitize(isPlaceholder
                       ? answerText
                       : formatAnswer(answerText, isExpanded)
                           .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\n/g, '<br>')
+                          .replace(/\n/g, '<br>'))
                   }),
                   // Expand/Collapse Button（占位文本不显示）
                   !isPlaceholder && answerText.length > 400 && h('button', {
@@ -1968,7 +1969,7 @@ const renderMarkdown = (content) => {
   }
   html = tokens.join('')
 
-  return html
+  return DOMPurify.sanitize(html)
 }
 
 const getTimelineItemClass = (log, idx, total) => {

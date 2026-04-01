@@ -5,11 +5,11 @@
 from .ontology_generator import OntologyGenerator
 from .graph_builder import GraphBuilderService
 from .text_processor import TextProcessor
-from .zep_entity_reader import ZepEntityReader, EntityNode, FilteredEntities
+from .entity_reader import EntityReader, EntityNode, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_manager import SimulationManager, SimulationState, SimulationStatus
 from .simulation_config_generator import (
-    SimulationConfigGenerator, 
+    SimulationConfigGenerator,
     SimulationParameters,
     AgentActivityConfig,
     TimeSimulationConfig,
@@ -23,9 +23,9 @@ from .simulation_runner import (
     AgentAction,
     RoundSummary
 )
-from .zep_graph_memory_updater import (
-    ZepGraphMemoryUpdater,
-    ZepGraphMemoryManager,
+from .graph_memory_updater import (
+    GraphMemoryUpdater,
+    GraphMemoryManager,
     AgentActivity
 )
 from .simulation_ipc import (
@@ -37,10 +37,16 @@ from .simulation_ipc import (
     CommandStatus
 )
 
+# Backward-compatible aliases for code that still references old Zep names
+ZepEntityReader = EntityReader
+ZepGraphMemoryUpdater = GraphMemoryUpdater
+ZepGraphMemoryManager = GraphMemoryManager
+
 __all__ = [
-    'OntologyGenerator', 
-    'GraphBuilderService', 
+    'OntologyGenerator',
+    'GraphBuilderService',
     'TextProcessor',
+    'EntityReader',
     'ZepEntityReader',
     'EntityNode',
     'FilteredEntities',
@@ -60,6 +66,8 @@ __all__ = [
     'RunnerStatus',
     'AgentAction',
     'RoundSummary',
+    'GraphMemoryUpdater',
+    'GraphMemoryManager',
     'ZepGraphMemoryUpdater',
     'ZepGraphMemoryManager',
     'AgentActivity',
